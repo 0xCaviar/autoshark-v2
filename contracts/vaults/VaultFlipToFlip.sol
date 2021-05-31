@@ -3,17 +3,12 @@ pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,29 +32,28 @@ import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 
 import {PoolConstant} from "../library/PoolConstant.sol";
-import "../interfaces/IPancakeRouter02.sol";
-import "../interfaces/IPancakePair.sol";
+import "pantherswap-peripheral/contracts/interfaces/IPantherRouter02.sol";
+import '@pantherswap-libs/panther-swap-core/contracts/interfaces/IPantherPair.sol';
 import "../interfaces/IStrategy.sol";
 import "../interfaces/IMasterChef.sol";
-import "../interfaces/IBunnyMinter.sol";
+import "../interfaces/IJawsMinter.sol";
 import "../zap/IZap.sol";
 
 import "./VaultController.sol";
+import "./SimpleVaultZap.sol";
+import "./JawsVaultReferral.sol";
 
-
-contract VaultFlipToFlip is VaultController, IStrategy {
+contract VaultFlipToFlip is VaultController, IStrategy, SimpleVaultZap, JawsVaultReferral {
     using SafeBEP20 for IBEP20;
     using SafeMath for uint256;
 
     /* ========== CONSTANTS ============= */
 
-    IPancakeRouter02 private constant ROUTER = IPancakeRouter02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
-    IBEP20 private constant CAKE = IBEP20(0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82);
+    IPantherRouter02 private constant ROUTER = IPantherRouter02(0x24f7C33ae5f77e2A9ECeed7EA858B4ca2fa1B7eC);
+    IBEP20 private constant PANTHER = IBEP20(0x1f546aD641B56b86fD9dCEAc473d1C7a357276B7);
     IBEP20 private constant WBNB = IBEP20(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c);
-    IMasterChef private constant CAKE_MASTER_CHEF = IMasterChef(0x73feaa1eE314F8c655E354234017bE2193C9E24E);
+    IMasterChef private constant PANTHER_MASTER_CHEF = IMasterChef(0x058451C62B96c594aD984370eDA8B6FD7197bbd4);
     PoolConstant.PoolTypes public constant override poolType = PoolConstant.PoolTypes.FlipToFlip;
-
-    IZap public constant zapBSC = IZap(0xCBEC8e7AB969F6Eb873Df63d04b4eAFC353574b1);
 
     uint private constant DUST = 1000;
 
@@ -75,30 +69,35 @@ contract VaultFlipToFlip is VaultController, IStrategy {
     mapping (address => uint) private _principal;
     mapping (address => uint) private _depositedAt;
 
-    uint public cakeHarvested;
+    uint public pantherHarvested;
+
+    IZap public zapBSC;
 
     /* ========== MODIFIER ========== */
 
-    modifier updateCakeHarvested {
-        uint before = CAKE.balanceOf(address(this));
+    modifier updatePantherHarvested {
+        uint before = PANTHER.balanceOf(address(this));
         _;
-        uint _after = CAKE.balanceOf(address(this));
-        cakeHarvested = cakeHarvested.add(_after).sub(before);
+        uint _after = PANTHER.balanceOf(address(this));
+        pantherHarvested = pantherHarvested.add(_after).sub(before);
     }
 
     /* ========== INITIALIZER ========== */
 
-    function initialize(uint _pid) external initializer {
+    function initialize(uint _pid, address _zapBSC) external initializer {
         require(_pid != 0, "VaultFlipToFlip: pid must not be zero");
 
-        (address _token,,,) = CAKE_MASTER_CHEF.poolInfo(_pid);
+        (address _token,,,) = PANTHER_MASTER_CHEF.poolInfo(_pid);
         __VaultController_init(IBEP20(_token));
+        __JawsReferral_init();
         setFlipToken(_token);
         pid = _pid;
+        zapBSC = IZap(_zapBSC);
 
-        CAKE.safeApprove(address(ROUTER), 0);
-        CAKE.safeApprove(address(ROUTER), uint(~0));
-        CAKE.safeApprove(address(zapBSC), uint(-1));
+        PANTHER.safeApprove(address(ROUTER), 0);
+        PANTHER.safeApprove(address(ROUTER), uint(~0));
+        PANTHER.safeApprove(address(zapBSC), uint(-1));
+        IBEP20(address(WBNB)).safeApprove(address(zapBSC), uint(~0));
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -108,7 +107,7 @@ contract VaultFlipToFlip is VaultController, IStrategy {
     }
 
     function balance() public view override returns (uint amount) {
-        (amount,) = CAKE_MASTER_CHEF.userInfo(pid, address(this));
+        (amount,) = PANTHER_MASTER_CHEF.userInfo(pid, address(this));
     }
 
     function balanceOf(address account) public view override returns(uint) {
@@ -151,12 +150,12 @@ contract VaultFlipToFlip is VaultController, IStrategy {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function deposit(uint _amount) public override {
-        _depositTo(_amount, msg.sender);
+    function deposit(uint _amount, address _referrer) public override {
+        _depositTo(_amount, msg.sender, _referrer);
     }
 
-    function depositAll() external override {
-        deposit(_stakingToken.balanceOf(msg.sender));
+    function depositAll(address _referrer) external override {
+        deposit(_stakingToken.balanceOf(msg.sender), _referrer);
     }
 
     function withdrawAll() external override {
@@ -175,7 +174,8 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         uint withdrawalFee = canMint() ? _minter.withdrawalFee(principal, depositTimestamp) : 0;
         uint performanceFee = canMint() ? _minter.performanceFee(profit) : 0;
         if (withdrawalFee.add(performanceFee) > DUST) {
-            _minter.mintFor(address(_stakingToken), withdrawalFee, performanceFee, msg.sender, depositTimestamp);
+            uint mintedShark = _minter.mintFor(address(_stakingToken), withdrawalFee, performanceFee, msg.sender, depositTimestamp);
+            payReferralCommission(msg.sender, mintedShark);
 
             if (performanceFee > 0) {
                 emit ProfitPaid(msg.sender, profit, performanceFee);
@@ -191,17 +191,19 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         _harvest();
 
         uint before = _stakingToken.balanceOf(address(this));
-        zapBSC.zapInToken(address(CAKE), cakeHarvested, address(_stakingToken));
+        uint bnbAmount = zapToWBNB(address(PANTHER), pantherHarvested); // Convert to BNB to save on taxes
+        
+        zapBSC.zapInToken(address(WBNB), bnbAmount, address(_stakingToken));
         uint harvested = _stakingToken.balanceOf(address(this)).sub(before);
 
-        CAKE_MASTER_CHEF.deposit(pid, harvested);
+        PANTHER_MASTER_CHEF.deposit(pid, harvested, 0xD9ebB6d95f3D8f3Da0b922bB05E0E79501C13554);
         emit Harvested(harvested);
 
-        cakeHarvested = 0;
+        pantherHarvested = 0;
     }
 
-    function _harvest() private updateCakeHarvested {
-        CAKE_MASTER_CHEF.withdraw(pid, 0);
+    function _harvest() private updatePantherHarvested {
+        PANTHER_MASTER_CHEF.withdraw(pid, 0);
     }
 
     function withdraw(uint shares) external override onlyWhitelisted {
@@ -226,7 +228,8 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         uint depositTimestamp = _depositedAt[msg.sender];
         uint withdrawalFee = canMint() ? _minter.withdrawalFee(amount, depositTimestamp) : 0;
         if (withdrawalFee > DUST) {
-            _minter.mintFor(address(_stakingToken), withdrawalFee, 0, msg.sender, depositTimestamp);
+            uint mintedShark = _minter.mintFor(address(_stakingToken), withdrawalFee, 0, msg.sender, depositTimestamp);
+            payReferralCommission(msg.sender, mintedShark);
             amount = amount.sub(withdrawalFee);
         }
 
@@ -234,7 +237,7 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         emit Withdrawn(msg.sender, amount, withdrawalFee);
     }
 
-    // @dev profits only (underlying + bunny) + no withdraw fee + perf fee
+    // @dev profits only (underlying + jaws) + no withdraw fee + perf fee
     function getReward() external override {
         uint amount = earned(msg.sender);
         uint shares = Math.min(amount.mul(totalShares).div(balance()), _shares[msg.sender]);
@@ -246,7 +249,8 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         uint depositTimestamp = _depositedAt[msg.sender];
         uint performanceFee = canMint() ? _minter.performanceFee(amount) : 0;
         if (performanceFee > DUST) {
-            _minter.mintFor(address(_stakingToken), 0, performanceFee, msg.sender, depositTimestamp);
+            uint mintedShark = _minter.mintFor(address(_stakingToken), 0, performanceFee, msg.sender, depositTimestamp);
+            payReferralCommission(msg.sender, mintedShark);
             amount = amount.sub(performanceFee);
         }
 
@@ -257,10 +261,10 @@ contract VaultFlipToFlip is VaultController, IStrategy {
     /* ========== PRIVATE FUNCTIONS ========== */
 
     function setFlipToken(address _token) private {
-        _token0 = IPancakePair(_token).token0();
-        _token1 = IPancakePair(_token).token1();
+        _token0 = IPantherPair(_token).token0();
+        _token1 = IPantherPair(_token).token1();
 
-        _stakingToken.safeApprove(address(CAKE_MASTER_CHEF), uint(~0));
+        _stakingToken.safeApprove(address(PANTHER_MASTER_CHEF), uint(~0));
 
         IBEP20(_token0).safeApprove(address(ROUTER), 0);
         IBEP20(_token0).safeApprove(address(ROUTER), uint(~0));
@@ -268,7 +272,7 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         IBEP20(_token1).safeApprove(address(ROUTER), uint(~0));
     }
 
-    function _depositTo(uint _amount, address _to) private notPaused updateCakeHarvested {
+    function _depositTo(uint _amount, address _to, address _referrer) private notPaused updatePantherHarvested {
         uint _pool = balance();
         uint _before = _stakingToken.balanceOf(address(this));
         _stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
@@ -281,18 +285,22 @@ contract VaultFlipToFlip is VaultController, IStrategy {
             shares = (_amount.mul(totalShares)).div(_pool);
         }
 
+        if (shares > 0 && address(jawsReferral) != address(0) && _referrer != address(0) && _referrer != msg.sender) {
+            jawsReferral.recordReferral(msg.sender, _referrer);
+        }
+
         totalShares = totalShares.add(shares);
         _shares[_to] = _shares[_to].add(shares);
         _principal[_to] = _principal[_to].add(_amount);
         _depositedAt[_to] = block.timestamp;
 
-        CAKE_MASTER_CHEF.deposit(pid, _amount);
+        PANTHER_MASTER_CHEF.deposit(pid, _amount, 0xD9ebB6d95f3D8f3Da0b922bB05E0E79501C13554);
         emit Deposited(_to, _amount);
     }
 
-    function _withdrawTokenWithCorrection(uint amount) private updateCakeHarvested returns (uint) {
+    function _withdrawTokenWithCorrection(uint amount) private updatePantherHarvested returns (uint) {
         uint before = _stakingToken.balanceOf(address(this));
-        CAKE_MASTER_CHEF.withdraw(pid, amount);
+        PANTHER_MASTER_CHEF.withdraw(pid, amount);
         return _stakingToken.balanceOf(address(this)).sub(before);
     }
 
@@ -304,13 +312,31 @@ contract VaultFlipToFlip is VaultController, IStrategy {
         }
     }
 
+    // Pay referral commission to the referrer who referred this user, based on profit
+    function payReferralCommission(address _user, uint256 _pending) internal {
+        if (address(jawsReferral) != address(0) && referralCommissionRate > 0) {
+            address referrer = jawsReferral.getReferrer(_user);
+            uint256 commissionAmount = _pending.mul(referralCommissionRate).div(10000);
+
+            if (referrer != address(0) && commissionAmount > 0) {
+                _minter.mintV1(commissionAmount, _user);
+                _minter.mintV1(commissionAmount, referrer);
+                
+                jawsReferral.recordReferralCommission(referrer, commissionAmount);
+                jawsReferral.recordReferralCommission(_user, commissionAmount);
+                emit ReferralCommissionPaid(_user, referrer, commissionAmount);
+                emit ReferralCommissionPaid(referrer, _user, commissionAmount);
+            }
+        }
+    }
+
     /* ========== SALVAGE PURPOSE ONLY ========== */
 
     // @dev stakingToken must not remain balance in this contract. So dev should salvage staking token transferred by mistake.
     function recoverToken(address token, uint amount) external override onlyOwner {
-        if (token == address(CAKE)) {
-            uint cakeBalance = CAKE.balanceOf(address(this));
-            require(amount <= cakeBalance.sub(cakeHarvested), "VaultFlipToFlip: cannot recover lp's harvested cake");
+        if (token == address(PANTHER)) {
+            uint pantherBalance = PANTHER.balanceOf(address(this));
+            require(amount <= pantherBalance.sub(pantherHarvested), "VaultFlipToFlip: cannot recover lp's harvested panther");
         }
 
         IBEP20(token).safeTransfer(owner(), amount);

@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../../../library/legacy/Pausable.sol";
 import "../../../library/SafeToken.sol";
 
-import "../../../interfaces/IPancakeRouter02.sol";
+import "pantherswap-peripheral/contracts/interfaces/IPantherRouter02.sol";
 import "../../../interfaces/IVenusDistribution.sol";
 import "../../../interfaces/IVBNB.sol";
 
@@ -22,7 +22,7 @@ contract StrategyVBNB is ReentrancyGuard, Pausable {
     address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address private constant XVS = 0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63;
     address private constant VENUS_UNITROLLER = 0xfD36E2c2a6789Db23113685031d7F16329158384;
-    address private constant PANCAKESWAP_ROUTER = 0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F;
+    address private constant PANPANTHERSWAP_ROUTER = 0x24f7C33ae5f77e2A9ECeed7EA858B4ca2fa1B7eC;
 
     address private constant KEEPER = 0x793074D9799DC3c6039F8056F1Ba884a73462051;
 
@@ -62,7 +62,7 @@ contract StrategyVBNB is ReentrancyGuard, Pausable {
     constructor(address _bankBNB) public {
         bankBNB = _bankBNB;
 
-        IERC20(XVS).safeApprove(PANCAKESWAP_ROUTER, uint256(-1));
+        IERC20(XVS).safeApprove(PANPANTHERSWAP_ROUTER, uint256(-1));
 
         address[] memory venusMarkets = new address[](1);
         venusMarkets[0] = vBNB;
@@ -108,7 +108,7 @@ contract StrategyVBNB is ReentrancyGuard, Pausable {
         paused = true;
         lastPauseTime = block.timestamp;
 
-        IERC20(XVS).safeApprove(PANCAKESWAP_ROUTER, 0);
+        IERC20(XVS).safeApprove(PANPANTHERSWAP_ROUTER, 0);
     }
 
     /**
@@ -117,7 +117,7 @@ contract StrategyVBNB is ReentrancyGuard, Pausable {
     function unpause() external onlyOwner {
         paused = false;
 
-        IERC20(XVS).safeApprove(PANCAKESWAP_ROUTER, uint256(-1));
+        IERC20(XVS).safeApprove(PANPANTHERSWAP_ROUTER, uint256(-1));
     }
 
     function recoverToken(address _token, uint256 _amount, address _to) public onlyOwner {
@@ -224,7 +224,7 @@ contract StrategyVBNB is ReentrancyGuard, Pausable {
         address[] memory path = new address[](2);
         path[0] = XVS;
         path[1] = WBNB;
-        IPancakeRouter02(PANCAKESWAP_ROUTER).swapExactTokensForETH(
+        IPantherRouter02(PANPANTHERSWAP_ROUTER).swapExactTokensForETH(
             earnedAmt,
             0,
             path,

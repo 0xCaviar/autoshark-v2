@@ -3,17 +3,12 @@ pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,10 +32,10 @@ import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../interfaces/IStrategy.sol";
-import "../interfaces/IBunnyMinter.sol";
-import "../interfaces/IBunnyChef.sol";
+import "../interfaces/IJawsMinter.sol";
+import "../interfaces/IJawsChef.sol";
 
-import "../vaults/legacy/BunnyPool.sol";
+import "../vaults/legacy/JawsPool.sol";
 import "../vaults/VaultVenus.sol";
 import "./calculator/PriceCalculatorBSC.sol";
 
@@ -52,17 +47,17 @@ contract DashboardBSC is OwnableUpgradeable {
     PriceCalculatorBSC public constant priceCalculator = PriceCalculatorBSC(0x542c06a5dc3f27e0fbDc9FB7BC6748f26d54dDb0);
 
     address public constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address public constant BUNNY = 0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51;
-    address public constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
-    address public constant VaultCakeToCake = 0xEDfcB78e73f7bA6aD2D829bf5D462a0924da28eD;
+    address public constant JAWS = 0xdD97AB35e3C0820215bc85a395e13671d84CCBa2;
+    address public constant PANTHER = 0x1f546aD641B56b86fD9dCEAc473d1C7a357276B7;
+    address public constant VaultPantherToPanther = 0xEDfcB78e73f7bA6aD2D829bf5D462a0924da28eD;
 
-    IBunnyChef private constant bunnyChef = IBunnyChef(0x40e31876c4322bd033BAb028474665B12c4d04CE);
-    BunnyPool private constant bunnyPool = BunnyPool(0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D);
+    IJawsChef private constant jawsChef = IJawsChef(0x40e31876c4322bd033BAb028474665B12c4d04CE);
+    JawsPool private constant jawsPool = JawsPool(0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D);
 
     /* ========== STATE VARIABLES ========== */
 
     mapping(address => PoolConstant.PoolTypes) public poolTypes;
-    mapping(address => uint) public pancakePoolIds;
+    mapping(address => uint) public pantherPoolIds;
     mapping(address => bool) public perfExemptions;
 
     /* ========== INITIALIZER ========== */
@@ -77,8 +72,8 @@ contract DashboardBSC is OwnableUpgradeable {
         poolTypes[pool] = poolType;
     }
 
-    function setPancakePoolId(address pool, uint pid) public onlyOwner {
-        pancakePoolIds[pool] = pid;
+    function setPantherPoolId(address pool, uint pid) public onlyOwner {
+        pantherPoolIds[pool] = pid;
     }
 
     function setPerfExemption(address pool, bool exemption) public onlyOwner {
@@ -107,44 +102,44 @@ contract DashboardBSC is OwnableUpgradeable {
         profit = 0;
         profitInBNB = 0;
 
-        if (poolType == PoolConstant.PoolTypes.BunnyStake) {
+        if (poolType == PoolConstant.PoolTypes.JawsStake) {
             // profit as bnb
-            (profit,) = priceCalculator.valueOfAsset(address(bunnyPool.rewardsToken()), bunnyPool.earned(account));
+            (profit,) = priceCalculator.valueOfAsset(address(jawsPool.rewardsToken()), jawsPool.earned(account));
             profitInBNB = profit;
         }
-        else if (poolType == PoolConstant.PoolTypes.Bunny) {
-            // profit as bunny
-            profit = bunnyChef.pendingBunny(pool, account);
-            (profitInBNB,) = priceCalculator.valueOfAsset(BUNNY, profit);
+        else if (poolType == PoolConstant.PoolTypes.Jaws) {
+            // profit as jaws
+            profit = jawsChef.pendingJaws(pool, account);
+            (profitInBNB,) = priceCalculator.valueOfAsset(JAWS, profit);
         }
-        else if (poolType == PoolConstant.PoolTypes.CakeStake || poolType == PoolConstant.PoolTypes.FlipToFlip || poolType == PoolConstant.PoolTypes.Venus) {
+        else if (poolType == PoolConstant.PoolTypes.pantherStake || poolType == PoolConstant.PoolTypes.FlipToFlip || poolType == PoolConstant.PoolTypes.Venus) {
             // profit as underlying
             IStrategy strategy = IStrategy(pool);
             profit = strategy.earned(account);
             (profitInBNB,) = priceCalculator.valueOfAsset(strategy.stakingToken(), profit);
         }
-        else if (poolType == PoolConstant.PoolTypes.FlipToCake || poolType == PoolConstant.PoolTypes.BunnyBNB) {
-            // profit as cake
+        else if (poolType == PoolConstant.PoolTypes.FlipTopanther || poolType == PoolConstant.PoolTypes.JawsBNB) {
+            // profit as panther
             IStrategy strategy = IStrategy(pool);
             profit = strategy.earned(account).mul(IStrategy(strategy.rewardsToken()).priceShare()).div(1e18);
-            (profitInBNB,) = priceCalculator.valueOfAsset(CAKE, profit);
+            (profitInBNB,) = priceCalculator.valueOfAsset(PANTHER, profit);
         }
     }
 
-    function profitOfPool(address pool, address account) public view returns (uint profit, uint bunny) {
+    function profitOfPool(address pool, address account) public view returns (uint profit, uint jaws) {
         (uint profitCalculated, uint profitInBNB) = calculateProfit(pool, account);
         profit = profitCalculated;
-        bunny = 0;
+        jaws = 0;
 
         if (!perfExemptions[pool]) {
             IStrategy strategy = IStrategy(pool);
             if (strategy.minter() != address(0)) {
                 profit = profit.mul(70).div(100);
-                bunny = IBunnyMinter(strategy.minter()).amountBunnyToMint(profitInBNB.mul(30).div(100));
+                jaws = IJawsMinter(strategy.minter()).amountJawsToMint(profitInBNB.mul(30).div(100));
             }
 
-            if (strategy.bunnyChef() != address(0)) {
-                bunny = bunny.add(bunnyChef.pendingBunny(pool, account));
+            if (strategy.jawsChef() != address(0)) {
+                jaws = jaws.add(jawsChef.pendingJaws(pool, account));
             }
         }
     }
@@ -152,17 +147,17 @@ contract DashboardBSC is OwnableUpgradeable {
     /* ========== TVL Calculation ========== */
 
     function tvlOfPool(address pool) public view returns (uint tvl) {
-        if (poolTypes[pool] == PoolConstant.PoolTypes.BunnyStake) {
-            (, tvl) = priceCalculator.valueOfAsset(address(bunnyPool.stakingToken()), bunnyPool.balance());
+        if (poolTypes[pool] == PoolConstant.PoolTypes.JawsStake) {
+            (, tvl) = priceCalculator.valueOfAsset(address(jawsPool.stakingToken()), jawsPool.balance());
         }
         else {
             IStrategy strategy = IStrategy(pool);
             (, tvl) = priceCalculator.valueOfAsset(strategy.stakingToken(), strategy.balance());
 
-            if (strategy.rewardsToken() == VaultCakeToCake) {
+            if (strategy.rewardsToken() == VaultPantherToPanther) {
                 IStrategy rewardsToken = IStrategy(strategy.rewardsToken());
-                uint rewardsInCake = rewardsToken.balanceOf(pool).mul(rewardsToken.priceShare()).div(1e18);
-                (, uint rewardsInUSD) = priceCalculator.valueOfAsset(address(CAKE), rewardsInCake);
+                uint jawsrewardsInPanther = rewardsToken.balanceOf(pool).mul(rewardsToken.priceShare()).div(1e18);
+                (, uint rewardsInUSD) = priceCalculator.valueOfAsset(address(PANTHER), jawsrewardsInPanther);
                 tvl = tvl.add(rewardsInUSD);
             }
         }
@@ -174,7 +169,7 @@ contract DashboardBSC is OwnableUpgradeable {
         PoolConstant.PoolInfoBSC memory poolInfo;
 
         IStrategy strategy = IStrategy(pool);
-        (uint pBASE, uint pBUNNY) = profitOfPool(pool, account);
+        (uint pBASE, uint pJAWS) = profitOfPool(pool, account);
         (uint liquidity, uint utilized) = utilizationOfPool(pool);
 
         poolInfo.pool = pool;
@@ -185,11 +180,11 @@ contract DashboardBSC is OwnableUpgradeable {
         poolInfo.utilized = utilized;
         poolInfo.liquidity = liquidity;
         poolInfo.pBASE = pBASE;
-        poolInfo.pBUNNY = pBUNNY;
+        poolInfo.pJAWS = pJAWS;
 
         PoolConstant.PoolTypes poolType = poolTypeOf(pool);
-        if (poolType != PoolConstant.PoolTypes.BunnyStake && strategy.minter() != address(0)) {
-            IBunnyMinter minter = IBunnyMinter(strategy.minter());
+        if (poolType != PoolConstant.PoolTypes.JawsStake && strategy.minter() != address(0)) {
+            IJawsMinter minter = IJawsMinter(strategy.minter());
             poolInfo.depositedAt = strategy.depositedAt(account);
             poolInfo.feeDuration = minter.WITHDRAWAL_FEE_FREE_PERIOD();
             poolInfo.feePercentage = minter.WITHDRAWAL_FEE();
@@ -211,8 +206,8 @@ contract DashboardBSC is OwnableUpgradeable {
         PoolConstant.PoolTypes poolType = poolTypes[pool];
 
         address stakingToken;
-        if (poolType == PoolConstant.PoolTypes.BunnyStake) {
-            stakingToken = BUNNY;
+        if (poolType == PoolConstant.PoolTypes.JawsStake) {
+            stakingToken = JAWS;
         } else {
             stakingToken = IStrategy(pool).stakingToken();
         }
@@ -224,25 +219,25 @@ contract DashboardBSC is OwnableUpgradeable {
     function portfolioOfPoolInUSD(address pool, address account) internal view returns (uint) {
         uint tokenInUSD = stakingTokenValueInUSD(pool, account);
         (, uint profitInBNB) = calculateProfit(pool, account);
-        uint profitInBUNNY = 0;
+        uint profitInJAWS = 0;
 
         if (!perfExemptions[pool]) {
             IStrategy strategy = IStrategy(pool);
             if (strategy.minter() != address(0)) {
                 profitInBNB = profitInBNB.mul(70).div(100);
-                profitInBUNNY = IBunnyMinter(strategy.minter()).amountBunnyToMint(profitInBNB.mul(30).div(100));
+                profitInJAWS = IJawsMinter(strategy.minter()).amountJawsToMint(profitInBNB.mul(30).div(100));
             }
 
-            if ((poolTypes[pool] == PoolConstant.PoolTypes.Bunny || poolTypes[pool] == PoolConstant.PoolTypes.BunnyBNB
+            if ((poolTypes[pool] == PoolConstant.PoolTypes.Jaws || poolTypes[pool] == PoolConstant.PoolTypes.JawsBNB
             || poolTypes[pool] == PoolConstant.PoolTypes.FlipToFlip)
-                && strategy.bunnyChef() != address(0)) {
-                profitInBUNNY = profitInBUNNY.add(bunnyChef.pendingBunny(pool, account));
+                && strategy.jawsChef() != address(0)) {
+                profitInJAWS = profitInJAWS.add(jawsChef.pendingJaws(pool, account));
             }
         }
 
         (, uint profitBNBInUSD) = priceCalculator.valueOfAsset(WBNB, profitInBNB);
-        (, uint profitBUNNYInUSD) = priceCalculator.valueOfAsset(BUNNY, profitInBUNNY);
-        return tokenInUSD.add(profitBNBInUSD).add(profitBUNNYInUSD);
+        (, uint profitJAWSInUSD) = priceCalculator.valueOfAsset(JAWS, profitInJAWS);
+        return tokenInUSD.add(profitBNBInUSD).add(profitJAWSInUSD);
     }
 
     function portfolioOf(address account, address[] memory pools) public view returns (uint deposits) {

@@ -3,17 +3,12 @@ pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,11 +32,11 @@ import "../library/PoolConstant.sol";
 import "./IVaultController.sol";
 
 interface IStrategy is IVaultController {
-    function deposit(uint _amount) external;
-    function depositAll() external;
-    function withdraw(uint _amount) external;    // BUNNY STAKING POOL ONLY
+    function deposit(uint _amount, address _referrer) external;
+    function depositAll(address _referrer) external;
+    function withdraw(uint _amount) external;    // JAWS STAKING POOL ONLY
     function withdrawAll() external;
-    function getReward() external;                  // BUNNY STAKING POOL ONLY
+    function getReward() external;                  // JAWS STAKING POOL ONLY
     function harvest() external;
 
     function totalSupply() external view returns (uint);
@@ -50,7 +45,7 @@ interface IStrategy is IVaultController {
     function sharesOf(address account) external view returns (uint);
     function principalOf(address account) external view returns (uint);
     function earned(address account) external view returns (uint);
-    function withdrawableBalanceOf(address account) external view returns (uint);   // BUNNY STAKING POOL ONLY
+    function withdrawableBalanceOf(address account) external view returns (uint);   // JAWS STAKING POOL ONLY
     function priceShare() external view returns (uint);
 
     /* ========== Strategy Information ========== */
@@ -63,6 +58,6 @@ interface IStrategy is IVaultController {
     event Deposited(address indexed user, uint amount);
     event Withdrawn(address indexed user, uint amount, uint withdrawalFee);
     event ProfitPaid(address indexed user, uint profit, uint performanceFee);
-    event BunnyPaid(address indexed user, uint profit, uint performanceFee);
+    event JawsPaid(address indexed user, uint profit, uint performanceFee);
     event Harvested(uint profit);
 }

@@ -3,17 +3,12 @@ pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -208,9 +203,9 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         VaultController.setMinter(newMinter);
     }
 
-    function setBunnyChef(IBunnyChef newChef) public override onlyOwner {
-        require(address(_bunnyChef) == address(0), "VenusVault: bunnyChef exists");
-        VaultController.setBunnyChef(IBunnyChef(newChef));
+    function setJawsChef(IJawsChef newChef) public override onlyOwner {
+        require(address(_jawsChef) == address(0), "VenusVault: jawsChef exists");
+        VaultController.setJawsChef(IJawsChef(newChef));
     }
 
     function setCollateralFactors(uint _collateralRatioFactor, uint _collateralDepth) external onlyOwner {
@@ -263,7 +258,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         collateralRatioEmergency = collateralFactorMantissa.mul(COLLATERAL_RATIO_EMERGENCY).div(1000);
     }
 
-    function deposit(uint amount) public override notPaused nonReentrant {
+    function deposit(uint amount, address _referrer) public override notPaused nonReentrant {
         require(address(_stakingToken) != WBNB, 'VaultVenus: invalid asset');
         updateVenusFactors();
 
@@ -279,14 +274,14 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         _principal[msg.sender] = _principal[msg.sender].add(amount);
         _depositedAt[msg.sender] = block.timestamp;
 
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyDeposited(msg.sender, shares);
+        if (address(_jawsChef) != address(0)) {
+            _jawsChef.notifyDeposited(msg.sender, shares);
         }
         emit Deposited(msg.sender, amount);
     }
 
-    function depositAll() external override {
-        deposit(_stakingToken.balanceOf(msg.sender));
+    function depositAll(address _referrer) external override {
+        deposit(_stakingToken.balanceOf(msg.sender), _referrer);
     }
 
     function depositBNB() public payable notPaused nonReentrant {
@@ -303,8 +298,8 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         _principal[msg.sender] = _principal[msg.sender].add(amount);
         _depositedAt[msg.sender] = block.timestamp;
 
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyDeposited(msg.sender, shares);
+        if (address(_jawsChef) != address(0)) {
+            _jawsChef.notifyDeposited(msg.sender, shares);
         }
         emit Deposited(msg.sender, amount);
     }
@@ -323,10 +318,10 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         amount = Math.min(amount, available);
         uint shares = _shares[msg.sender];
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyWithdrawn(msg.sender, shares);
-            uint bunnyAmount = _bunnyChef.safeBunnyTransfer(msg.sender);
-            emit BunnyPaid(msg.sender, bunnyAmount, 0);
+        if (address(_jawsChef) != address(0)) {
+            _jawsChef.notifyWithdrawn(msg.sender, shares);
+            uint jawsAmount = _jawsChef.safeJawsTransfer(msg.sender);
+            emit JawsPaid(msg.sender, jawsAmount, 0);
         }
 
         totalShares = totalShares.sub(shares);
@@ -373,8 +368,8 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         amount = Math.min(amount, available);
         uint shares = balance() == 0 ? 0 : Math.min(amount.mul(totalShares).div(balance()), _shares[msg.sender]);
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyWithdrawn(msg.sender, shares);
+        if (address(_jawsChef) != address(0)) {
+            _jawsChef.notifyWithdrawn(msg.sender, shares);
         }
 
         totalShares = totalShares.sub(shares);
@@ -412,14 +407,14 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         }
 
         amount = Math.min(amount, available);
-        if (address(_bunnyChef) != address(0)) {
-            uint bunnyAmount = _bunnyChef.safeBunnyTransfer(msg.sender);
-            emit BunnyPaid(msg.sender, bunnyAmount, 0);
+        if (address(_jawsChef) != address(0)) {
+            uint jawsAmount = _jawsChef.safeJawsTransfer(msg.sender);
+            emit JawsPaid(msg.sender, jawsAmount, 0);
         }
 
         uint shares = balance() == 0 ? 0 : Math.min(amount.mul(totalShares).div(balance()), _shares[msg.sender]);
-        if (address(_bunnyChef) != address(0)) {
-            _bunnyChef.notifyWithdrawn(msg.sender, shares);
+        if (address(_jawsChef) != address(0)) {
+            _jawsChef.notifyWithdrawn(msg.sender, shares);
         }
 
         totalShares = totalShares.sub(shares);
@@ -427,8 +422,8 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
         // cleanup dust
         if (_shares[msg.sender] > 0 && _shares[msg.sender] < DUST) {
-            if (address(_bunnyChef) != address(0)) {
-                _bunnyChef.notifyWithdrawn(msg.sender, _shares[msg.sender]);
+            if (address(_jawsChef) != address(0)) {
+                _jawsChef.notifyWithdrawn(msg.sender, _shares[msg.sender]);
             }
             totalShares = totalShares.sub(_shares[msg.sender]);
             delete _shares[msg.sender];

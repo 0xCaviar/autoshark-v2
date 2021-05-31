@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "target": "es2018",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "types": ["node", "truffle-contracts"]
+  },
+  "include": ["./scripts", "./test", "./migrations", "./types", "./typechain"],
+  "files": ["hardhat.config.ts"]
+}

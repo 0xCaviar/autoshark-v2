@@ -203,7 +203,7 @@ contract BankBNB is IBankBNB, VaultController, ReentrancyGuardUpgradeable {
         }
 
         // TODO: @hc
-//        _bunnyChef.notifyDeposited(msg.sender, share);
+//        _jawsChef.notifyDeposited(msg.sender, share);
         _depositedAt[msg.sender] = block.timestamp;
         emit Deposited(msg.sender, msg.value);
     }
@@ -218,7 +218,7 @@ contract BankBNB is IBankBNB, VaultController, ReentrancyGuardUpgradeable {
         require(totalLocked() >= withdrawAmount, "BankBNB: Not enough balance to withdraw");
 
         // TODO: @hc
-//        _bunnyChef.notifyWithdrawn(msg.sender, shares);
+//        _jawsChef.notifyWithdrawn(msg.sender, shares);
         totalShares = totalShares.sub(shares);
         _shares[msg.sender] = _shares[msg.sender].sub(shares);
 
@@ -257,7 +257,7 @@ contract BankBNB is IBankBNB, VaultController, ReentrancyGuardUpgradeable {
         getReward();
     }
 
-    // @dev add yield to principal, then get $bunny
+    // @dev add yield to principal, then get $jaws
     function getReward() public override nonReentrant {
         uint _earned = earned(msg.sender);
         if (canMint() && _earned > 0) {
@@ -274,8 +274,8 @@ contract BankBNB is IBankBNB, VaultController, ReentrancyGuardUpgradeable {
         }
 
         // TODO: @hc
-//        uint bunnyAmount = _bunnyChef.safeBunnyTransfer(msg.sender);
-//        emit BunnyPaid(msg.sender, bunnyAmount, 0);
+//        uint jawsAmount = _jawsChef.safeJawsTransfer(msg.sender);
+//        emit JawsPaid(msg.sender, jawsAmount, 0);
     }
 
     function harvest() external override {

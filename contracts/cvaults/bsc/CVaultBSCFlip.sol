@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/math/Math.sol";
 
 import "../../library/PausableUpgradeable.sol";
 
-import "../../interfaces/IPancakePair.sol";
+import '@pantherswap-libs/panther-swap-core/contracts/interfaces/IPantherPair.sol';
 import "../../interfaces/IStrategy.sol";
 import "../interface/ICVaultBSCFlip.sol";
 import "../interface/IBankBNB.sol";
@@ -28,7 +28,7 @@ contract CVaultBSCFlip is ICVaultBSCFlip, CVaultBSCFlipStorage {
     /* ========== CONSTANTS ============= */
 
     address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address private constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
+    address private constant PANTHER = 0x1f546aD641B56b86fD9dCEAc473d1C7a357276B7;
 
     /* ========== STATE VARIABLES ========== */
 
@@ -106,10 +106,10 @@ contract CVaultBSCFlip is ICVaultBSCFlip, CVaultBSCFlipStorage {
         return relayer.collateralRatioOnETH(lp, lpAmount, flipOf(lp), flipAmount, debt);
     }
 
-    function calculateAmountsInOut(address lp, address _account, uint collateral, uint128 leverage) public view returns (uint bnbIn, uint bnbOut, uint cakeOut) {
+    function calculateAmountsInOut(address lp, address _account, uint collateral, uint128 leverage) public view returns (uint bnbIn, uint bnbOut, uint pantherOut) {
         bnbIn = 0;
         bnbOut = 0;
-        cakeOut = 0;
+        pantherOut = 0;
 
         (uint liquidity, uint utilized) = bankBNB().getUtilizationInfo();
         uint targetDebtInBNB = _calculateTargetDebt(lp, collateral, leverage);
@@ -118,7 +118,7 @@ contract CVaultBSCFlip is ICVaultBSCFlip, CVaultBSCFlipStorage {
             bnbIn = Math.min(targetDebtInBNB.sub(currentDebtValue), liquidity.sub(utilized));
         } else {
             bnbOut = currentDebtValue.sub(targetDebtInBNB);
-            cakeOut = IStrategy(cpoolOf(lp)).earned(_account);
+            pantherOut = IStrategy(cpoolOf(lp)).earned(_account);
         }
     }
 
@@ -188,7 +188,7 @@ contract CVaultBSCFlip is ICVaultBSCFlip, CVaultBSCFlipStorage {
     function _addLiquidity(address lp, address _account, uint value) private {
         address flip = flipOf(lp);
         _zap.zapIn{value : value}(flip);
-        ICPool(cpoolOf(lp)).deposit(_account, IBEP20(flip).balanceOf(address(this)));
+        ICPool(cpoolOf(lp)).deposit(_account, IBEP20(flip).balanceOf(address(this)), address(0));
     }
 
     function _removeLiquidity(address lp, address _account, uint amount) private {
@@ -199,12 +199,12 @@ contract CVaultBSCFlip is ICVaultBSCFlip, CVaultBSCFlipStorage {
         cpool.getReward(_account);
 
         _zapOut(flipOf(lp), amount);
-        uint cakeBalance = IBEP20(CAKE).balanceOf(address(this));
-        if (cakeBalance > 0) {
-            _zapOut(CAKE, cakeBalance);
+        uint pantherBalance = IBEP20(PANTHER).balanceOf(address(this));
+        if (pantherBalance > 0) {
+            _zapOut(PANTHER, pantherBalance);
         }
 
-        IPancakePair pair = IPancakePair(flipOf(lp));
+        IPantherPair pair = IPantherPair(flipOf(lp));
         address token0 = pair.token0();
         address token1 = pair.token1();
         if (token0 != WBNB) {

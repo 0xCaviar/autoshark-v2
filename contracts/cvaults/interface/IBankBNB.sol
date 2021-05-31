@@ -2,17 +2,12 @@
 pragma solidity ^0.6.12;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +58,7 @@ interface IBankBNB {
     function sharesOf(address account) external view returns (uint);
     function principalOf(address account) external view returns (uint);
     function earned(address account) external view returns (uint);
-    function withdrawableBalanceOf(address account) external view returns (uint);   // BUNNY STAKING POOL ONLY
+    function withdrawableBalanceOf(address account) external view returns (uint);   // JAWS STAKING POOL ONLY
     function priceShare() external view returns(uint);
 
     /* ========== Strategy Information ========== */
@@ -76,6 +71,6 @@ interface IBankBNB {
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount, uint256 withdrawalFee);
     event ProfitPaid(address indexed user, uint256 profit, uint256 performanceFee);
-    event BunnyPaid(address indexed user, uint256 profit, uint256 performanceFee);
+    event JawsPaid(address indexed user, uint256 profit, uint256 performanceFee);
     event Harvested(uint256 profit);
 }

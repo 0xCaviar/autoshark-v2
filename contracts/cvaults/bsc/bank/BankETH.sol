@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/math/Math.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 
-import "../../../interfaces/IPancakePair.sol";
-import "../../../interfaces/IPancakeRouter02.sol";
+import '@pantherswap-libs/panther-swap-core/contracts/interfaces/IPantherPair.sol';
+import "pantherswap-peripheral/contracts/interfaces/IPantherRouter02.sol";
 
 import "../../../library/PausableUpgradeable.sol";
 import "../../../library/WhitelistUpgradeable.sol";
@@ -22,7 +22,7 @@ contract BankETH is IBankETH, PausableUpgradeable, WhitelistUpgradeable {
 
     address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address private constant ETH = 0x2170Ed0880ac9A755fd29B2688956BD959F933F8;
-    IPancakeRouter02 private constant ROUTER = IPancakeRouter02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
+    IPantherRouter02 private constant ROUTER = IPantherRouter02(0x24f7C33ae5f77e2A9ECeed7EA858B4ca2fa1B7eC);
 
     /* ========== STATE VARIABLES ========== */
 

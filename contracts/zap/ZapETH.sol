@@ -2,17 +2,12 @@
 pragma solidity ^0.6.12;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -235,26 +230,26 @@ contract ZapETH is OwnableUpgradeable {
             path[3] = routePairAddresses[_to];
             path[4] = _to;
         } else if (intermediate != address(0) && routePairAddresses[_from] != address(0)) {
-            // [VAI, BUSD, WETH, BUNNY]
+            // [VAI, BUSD, WETH, JAWS]
             path = new address[](4);
             path[0] = _from;
             path[1] = intermediate;
             path[2] = WETH;
             path[3] = _to;
         } else if (intermediate != address(0) && routePairAddresses[_to] != address(0)) {
-            // [BUNNY, WETH, BUSD, VAI]
+            // [JAWS, WETH, BUSD, VAI]
             path = new address[](4);
             path[0] = _from;
             path[1] = WETH;
             path[2] = intermediate;
             path[3] = _to;
         } else if (_from == WETH || _to == WETH) {
-            // [WETH, BUNNY] or [BUNNY, WETH]
+            // [WETH, JAWS] or [JAWS, WETH]
             path = new address[](2);
             path[0] = _from;
             path[1] = _to;
         } else {
-            // [USDT, BUNNY] or [BUNNY, USDT]
+            // [USDT, JAWS] or [JAWS, USDT]
             path = new address[](3);
             path[0] = _from;
             path[1] = WETH;

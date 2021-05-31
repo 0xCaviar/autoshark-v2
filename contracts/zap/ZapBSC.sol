@@ -2,17 +2,12 @@
 pragma solidity ^0.6.12;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,9 +30,11 @@ pragma solidity ^0.6.12;
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 
-import "../interfaces/IPancakePair.sol";
-import "../interfaces/IPancakeRouter02.sol";
+import '@pantherswap-libs/panther-swap-core/contracts/interfaces/IPantherPair.sol';
+import "pantherswap-peripheral/contracts/interfaces/IPantherRouter02.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+import "../interfaces/IPantherToken.sol";
 
 contract ZapBSC is OwnableUpgradeable {
     using SafeMath for uint;
@@ -45,8 +42,8 @@ contract ZapBSC is OwnableUpgradeable {
 
     /* ========== CONSTANT VARIABLES ========== */
 
-    address private constant CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
-    address private constant BUNNY = 0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51;
+    address private constant PANTHER = 0x1f546aD641B56b86fD9dCEAc473d1C7a357276B7;
+    address private constant JAWS = 0xdD97AB35e3C0820215bc85a395e13671d84CCBa2;
     address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address private constant BUSD = 0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56;
     address private constant USDT = 0x55d398326f99059fF775485246999027B3197955;
@@ -56,7 +53,7 @@ contract ZapBSC is OwnableUpgradeable {
     address private constant BTCB = 0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c;
     address private constant ETH = 0x2170Ed0880ac9A755fd29B2688956BD959F933F8;
 
-    IPancakeRouter02 private constant ROUTER = IPancakeRouter02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
+    IPantherRouter02 private constant ROUTER = IPantherRouter02(0x24f7C33ae5f77e2A9ECeed7EA858B4ca2fa1B7eC);
 
     /* ========== STATE VARIABLES ========== */
 
@@ -70,8 +67,8 @@ contract ZapBSC is OwnableUpgradeable {
         __Ownable_init();
         require(owner() != address(0), "Zap: owner must be set");
 
-        setNotFlip(CAKE);
-        setNotFlip(BUNNY);
+        setNotFlip(PANTHER);
+        setNotFlip(JAWS);
         setNotFlip(WBNB);
         setNotFlip(BUSD);
         setNotFlip(USDT);
@@ -102,15 +99,17 @@ contract ZapBSC is OwnableUpgradeable {
         _approveTokenIfNeeded(_from);
 
         if (isFlip(_to)) {
-            IPancakePair pair = IPancakePair(_to);
+            IPantherPair pair = IPantherPair(_to);
             address token0 = pair.token0();
             address token1 = pair.token1();
             if (_from == token0 || _from == token1) {
                 // swap half amount for other
                 address other = _from == token0 ? token1 : token0;
                 _approveTokenIfNeeded(other);
-                uint sellAmount = amount.div(2);
-                uint otherAmount = _swap(_from, sellAmount, other, address(this));
+                uint sellAmount = getSwapAmount(_from, other, amount);
+                uint beforeOtherAmount = IBEP20(other).balanceOf(address(this));
+                _swap(_from, sellAmount, other, address(this));
+                uint otherAmount = IBEP20(other).balanceOf(address(this)).sub(beforeOtherAmount);
                 ROUTER.addLiquidity(_from, other, amount.sub(sellAmount), otherAmount, 0, 0, msg.sender, block.timestamp);
             } else {
                 uint bnbAmount = _swapTokenForBNB(_from, amount, address(this));
@@ -132,7 +131,7 @@ contract ZapBSC is OwnableUpgradeable {
         if (!isFlip(_from)) {
             _swapTokenForBNB(_from, amount, msg.sender);
         } else {
-            IPancakePair pair = IPancakePair(_from);
+            IPantherPair pair = IPantherPair(_from);
             address token0 = pair.token0();
             address token1 = pair.token1();
             if (token0 == WBNB || token1 == WBNB) {
@@ -156,7 +155,7 @@ contract ZapBSC is OwnableUpgradeable {
             _swapBNBForToken(flip, amount, receiver);
         } else {
             // flip
-            IPancakePair pair = IPancakePair(flip);
+            IPantherPair pair = IPantherPair(flip);
             address token0 = pair.token0();
             address token1 = pair.token1();
             if (token0 == WBNB || token1 == WBNB) {
@@ -247,34 +246,55 @@ contract ZapBSC is OwnableUpgradeable {
             path[3] = routePairAddresses[_to];
             path[4] = _to;
         } else if (intermediate != address(0) && routePairAddresses[_from] != address(0)) {
-            // [VAI, BUSD, WBNB, BUNNY]
+            // [VAI, BUSD, WBNB, JAWS]
             path = new address[](4);
             path[0] = _from;
             path[1] = intermediate;
             path[2] = WBNB;
             path[3] = _to;
         } else if (intermediate != address(0) && routePairAddresses[_to] != address(0)) {
-            // [BUNNY, WBNB, BUSD, VAI]
+            // [JAWS, WBNB, BUSD, VAI]
             path = new address[](4);
             path[0] = _from;
             path[1] = WBNB;
             path[2] = intermediate;
             path[3] = _to;
         } else if (_from == WBNB || _to == WBNB) {
-            // [WBNB, BUNNY] or [BUNNY, WBNB]
+            // [WBNB, JAWS] or [JAWS, WBNB]
             path = new address[](2);
             path[0] = _from;
             path[1] = _to;
         } else {
-            // [USDT, BUNNY] or [BUNNY, USDT]
+            // [USDT, JAWS] or [JAWS, USDT]
             path = new address[](3);
             path[0] = _from;
             path[1] = WBNB;
             path[2] = _to;
         }
+        _approveTokenIfNeeded(_from);
+        if (_from == PANTHER) {
+            uint before = IBEP20(_to).balanceOf(address(this));
+            ROUTER.swapExactTokensForTokensSupportingFeeOnTransferTokens(amount, 0, path, address(this), block.timestamp);
+            uint toBalance = IBEP20(_to).balanceOf(address(this)).sub(before);
+            IBEP20(_to).transfer(receiver, toBalance);
+            return toBalance;
+        } else {    
+            uint[] memory amounts = ROUTER.swapExactTokensForTokens(amount, 0, path, receiver, block.timestamp);
+            return amounts[amounts.length - 1];
+        }
+    }
 
-        uint[] memory amounts = ROUTER.swapExactTokensForTokens(amount, 0, path, receiver, block.timestamp);
-        return amounts[amounts.length - 1];
+    // @dev where amount refers to the total amount that you wish to swap
+    function getSwapAmount(address _from, address _to, uint amount) public view returns (uint) {
+        if (_from == _to) return 0;
+        if (_from == PANTHER || _to == PANTHER) {
+            uint base = 10000;
+            uint tax = base.mul(2).sub(IPantherToken(PANTHER).transferTaxRate()); // 20000 - 500
+            uint resultAmount= amount.div(tax).mul(base.sub(IPantherToken(PANTHER).transferTaxRate())); // 200 / 19500 * 9500 / 10000
+            return amount.sub(resultAmount);
+        } else {
+            return amount.div(2);
+        }
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */

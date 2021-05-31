@@ -3,17 +3,12 @@ pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +44,7 @@ contract MigrationRewards is Ownable, ReentrancyGuard {
     event MigrationRewardsPaid(address indexed account, uint amount);
     event EmergencyExit(address indexed token, uint amount);
 
-    IBEP20 private constant BUNNY = IBEP20(0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51);
+    IBEP20 private constant JAWS = IBEP20(0xdD97AB35e3C0820215bc85a395e13671d84CCBa2);
     mapping(address => uint) public rewards;
 
     function getReward() public nonReentrant {
@@ -57,7 +52,7 @@ contract MigrationRewards is Ownable, ReentrancyGuard {
         if (reward > 0) {
             rewards[msg.sender] = 0;
 
-            BUNNY.safeTransfer(msg.sender, reward);
+            JAWS.safeTransfer(msg.sender, reward);
             emit MigrationRewardsPaid(msg.sender, reward);
         }
     }

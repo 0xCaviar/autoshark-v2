@@ -2,17 +2,12 @@
 pragma solidity ^0.6.12;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -36,11 +31,11 @@ pragma solidity ^0.6.12;
 library PoolConstant {
 
     enum PoolTypes {
-        BunnyStake, // no perf fee
-        BunnyFlip_deprecated, // deprecated
-        CakeStake, FlipToFlip, FlipToCake,
-        Bunny, // no perf fee
-        BunnyBNB,
+        JawsStake, // no perf fee
+        JawsFlip_deprecated, // deprecated
+        pantherStake, FlipToFlip, FlipTopanther,
+        Jaws, // no perf fee
+        JawsBNB,
         Venus
     }
 
@@ -53,7 +48,7 @@ library PoolConstant {
         uint utilized;
         uint liquidity;
         uint pBASE;
-        uint pBUNNY;
+        uint pJAWS;
         uint depositedAt;
         uint feeDuration;
         uint feePercentage;

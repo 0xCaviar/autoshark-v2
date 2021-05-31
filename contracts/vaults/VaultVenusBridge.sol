@@ -8,7 +8,7 @@ import "../library/SafeToken.sol";
 import "../library/Whitelist.sol";
 
 import "../interfaces/IVaultVenusBridge.sol";
-import "../interfaces/IPancakeRouter02.sol";
+import "pantherswap-peripheral/contracts/interfaces/IPantherRouter02.sol";
 import "../interfaces/IVenusDistribution.sol";
 import "../interfaces/IVBNB.sol";
 import "../interfaces/IVToken.sol";
@@ -22,7 +22,7 @@ contract VaultVenusBridge is Whitelist, Exponential, IVaultVenusBridge {
 
     /* ========== CONSTANTS ============= */
 
-    IPancakeRouter02 private constant PANCAKE_ROUTER = IPancakeRouter02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
+    IPantherRouter02 private constant PANPANTHER_ROUTER = IPantherRouter02(0x24f7C33ae5f77e2A9ECeed7EA858B4ca2fa1B7eC);
     IVenusDistribution private constant VENUS_UNITROLLER = IVenusDistribution(0xfD36E2c2a6789Db23113685031d7F16329158384);
 
     address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
@@ -58,7 +58,7 @@ contract VaultVenusBridge is Whitelist, Exponential, IVaultVenusBridge {
     receive() external payable {}
 
     constructor() public {
-        XVS.safeApprove(address(PANCAKE_ROUTER), uint(- 1));
+        XVS.safeApprove(address(PANPANTHER_ROUTER), uint(- 1));
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -81,7 +81,7 @@ contract VaultVenusBridge is Whitelist, Exponential, IVaultVenusBridge {
         _marketList.push(market);
         markets[vault] = market;
 
-        IBEP20(token).safeApprove(address(PANCAKE_ROUTER), uint(- 1));
+        IBEP20(token).safeApprove(address(PANPANTHER_ROUTER), uint(- 1));
         IBEP20(token).safeApprove(vToken, uint(- 1));
 
         address[] memory venusMarkets = new address[](1);
@@ -136,13 +136,13 @@ contract VaultVenusBridge is Whitelist, Exponential, IVaultVenusBridge {
                 address[] memory path = new address[](2);
                 path[0] = address(XVS);
                 path[1] = WBNB;
-                PANCAKE_ROUTER.swapExactTokensForETH(xvsBalance, 0, path, address(this), block.timestamp);
+                PANPANTHER_ROUTER.swapExactTokensForETH(xvsBalance, 0, path, address(this), block.timestamp);
             } else {
                 address[] memory path = new address[](3);
                 path[0] = address(XVS);
                 path[1] = WBNB;
                 path[2] = market.token;
-                PANCAKE_ROUTER.swapExactTokensForTokens(xvsBalance, 0, path, address(this), block.timestamp);
+                PANPANTHER_ROUTER.swapExactTokensForTokens(xvsBalance, 0, path, address(this), block.timestamp);
             }
         }
     }

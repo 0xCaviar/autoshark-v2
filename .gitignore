@@ -108,3 +108,15 @@ build
 .openzeppelin
 
 docs/.DS_Store
+
+secrets.json
+yarn.lock
+**/artifacts
+.vscode
+cache
+**/typechain
+contracts/loan
+**/migrations
+**/test
+hardhat.config.ts
+.DS_Store

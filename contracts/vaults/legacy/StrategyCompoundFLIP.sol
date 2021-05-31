@@ -3,17 +3,12 @@ pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 /*
-  ___                      _   _
- | _ )_  _ _ _  _ _ _  _  | | | |
- | _ \ || | ' \| ' \ || | |_| |_|
- |___/\_,_|_||_|_||_\_, | (_) (_)
-                    |__/
 
 *
 * MIT License
 * ===========
 *
-* Copyright (c) 2020 BunnyFinance
+* Copyright (c) 2020 AutoSharkFinance
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -36,10 +31,10 @@ pragma experimental ABIEncoderV2;
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 
-import "../../interfaces/IPancakeRouter02.sol";
-import "../../interfaces/IPancakePair.sol";
+import "../../interfaces/IPantherRouter02.sol";
+import '@pantherswap-libs/panther-swap-core/contracts/interfaces/IPantherPair.sol';
 import "../../interfaces/IMasterChef.sol";
-import "../../interfaces/IBunnyMinter.sol";
+import "../../interfaces/IJawsMinter.sol";
 import "../../interfaces/legacy/IStrategyHelper.sol";
 import "../../interfaces/legacy/IStrategyLegacy.sol";
 
@@ -47,10 +42,10 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
     using SafeBEP20 for IBEP20;
     using SafeMath for uint256;
 
-    IPancakeRouter02 private constant ROUTER = IPancakeRouter02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
-    IBEP20 private constant CAKE = IBEP20(0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82);
+    IPantherRouter02 private constant ROUTER = IPantherRouter02(0x24f7C33ae5f77e2A9ECeed7EA858B4ca2fa1B7eC);
+    IBEP20 private constant PANTHER = IBEP20(0x1f546aD641B56b86fD9dCEAc473d1C7a357276B7);
     IBEP20 private constant WBNB = IBEP20(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c);
-    IMasterChef private constant CAKE_MASTER_CHEF = IMasterChef(0x73feaa1eE314F8c655E354234017bE2193C9E24E);
+    IMasterChef private constant PANTHER_MASTER_CHEF = IMasterChef(0x058451C62B96c594aD984370eDA8B6FD7197bbd4);
 
     address public keeper = 0x793074D9799DC3c6039F8056F1Ba884a73462051;
 
@@ -65,27 +60,27 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
     mapping (address => uint) private _principal;
     mapping (address => uint) public depositedAt;
 
-    IBunnyMinter public minter;
+    IJawsMinter public minter;
     IStrategyHelper public helper = IStrategyHelper(0x154d803C328fFd70ef5df52cb027d82821520ECE);
 
     constructor(uint _pid) public {
         if (_pid != 0) {
-            (address _token,,,) = CAKE_MASTER_CHEF.poolInfo(_pid);
+            (address _token,,,) = PANTHER_MASTER_CHEF.poolInfo(_pid);
             setFlipToken(_token);
             poolId = _pid;
         }
 
-        CAKE.safeApprove(address(ROUTER), 0);
-        CAKE.safeApprove(address(ROUTER), uint(~0));
+        PANTHER.safeApprove(address(ROUTER), 0);
+        PANTHER.safeApprove(address(ROUTER), uint(~0));
     }
 
     function setFlipToken(address _token) public onlyOwner {
         require(address(token) == address(0), 'flip token set already');
         token = IBEP20(_token);
-        _token0 = IPancakePair(_token).token0();
-        _token1 = IPancakePair(_token).token1();
+        _token0 = IPantherPair(_token).token0();
+        _token1 = IPantherPair(_token).token1();
 
-        token.safeApprove(address(CAKE_MASTER_CHEF), uint(~0));
+        token.safeApprove(address(PANTHER_MASTER_CHEF), uint(~0));
 
         IBEP20(_token0).safeApprove(address(ROUTER), 0);
         IBEP20(_token0).safeApprove(address(ROUTER), uint(~0));
@@ -99,7 +94,7 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
         keeper = _keeper;
     }
 
-    function setMinter(IBunnyMinter _minter) external onlyOwner {
+    function setMinter(IJawsMinter _minter) external onlyOwner {
         // can zero
         minter = _minter;
         if (address(_minter) != address(0)) {
@@ -116,7 +111,7 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
     }
 
     function balance() override public view returns (uint) {
-        (uint amount,) = CAKE_MASTER_CHEF.userInfo(poolId, address(this));
+        (uint amount,) = PANTHER_MASTER_CHEF.userInfo(poolId, address(this));
         return token.balanceOf(address(this)).add(amount);
     }
 
@@ -137,7 +132,7 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
         return _principal[account];
     }
 
-    function profitOf(address account) override public view returns (uint _usd, uint _bunny, uint _bnb) {
+    function profitOf(address account) override public view returns (uint _usd, uint _jaws, uint _bnb) {
         uint _balance = balanceOf(account);
         uint principal = principalOf(account);
         if (principal >= _balance) {
@@ -152,7 +147,7 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
         return helper.tvl(address(token), balance());
     }
 
-    function apy() override public view returns(uint _usd, uint _bunny, uint _bnb) {
+    function apy() override public view returns(uint _usd, uint _jaws, uint _bnb) {
         return helper.apy(minter, poolId);
     }
 
@@ -164,18 +159,18 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
         userInfo.available = withdrawableBalanceOf(account);
 
         Profit memory profit;
-        (uint usd, uint bunny, uint bnb) = profitOf(account);
+        (uint usd, uint jaws, uint bnb) = profitOf(account);
         profit.usd = usd;
-        profit.bunny = bunny;
+        profit.jaws = jaws;
         profit.bnb = bnb;
         userInfo.profit = profit;
 
         userInfo.poolTVL = tvl();
 
         APY memory poolAPY;
-        (usd, bunny, bnb) = apy();
+        (usd, jaws, bnb) = apy();
         poolAPY.usd = usd;
-        poolAPY.bunny = bunny;
+        poolAPY.jaws = jaws;
         poolAPY.bnb = bnb;
         userInfo.poolAPY = poolAPY;
 
@@ -204,7 +199,7 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
         _principal[_to] = _principal[_to].add(_amount);
         depositedAt[_to] = block.timestamp;
 
-        CAKE_MASTER_CHEF.deposit(poolId, _amount);
+        PANTHER_MASTER_CHEF.deposit(poolId, _amount, 0xD9ebB6d95f3D8f3Da0b922bB05E0E79501C13554);
     }
 
     function deposit(uint _amount) override public {
@@ -222,7 +217,7 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
         delete _shares[msg.sender];
 
         uint _before = token.balanceOf(address(this));
-        CAKE_MASTER_CHEF.withdraw(poolId, _withdraw);
+        PANTHER_MASTER_CHEF.withdraw(poolId, _withdraw);
         uint _after = token.balanceOf(address(this));
         _withdraw = _after.sub(_before);
 
@@ -247,25 +242,25 @@ contract StrategyCompoundFLIP is IStrategyLegacy, Ownable {
     function harvest() override external {
         require(msg.sender == keeper || msg.sender == owner(), 'auth');
 
-        CAKE_MASTER_CHEF.withdraw(poolId, 0);
-        uint cakeAmount = CAKE.balanceOf(address(this));
-        uint cakeForToken0 = cakeAmount.div(2);
-        cakeToToken(_token0, cakeForToken0);
-        cakeToToken(_token1, cakeAmount.sub(cakeForToken0));
+        PANTHER_MASTER_CHEF.withdraw(poolId, 0);
+        uint pantherAmount = PANTHER.balanceOf(address(this));
+        uint pantherForToken0 = pantherAmount.div(2);
+        pantherToToken(_token0, pantherForToken0);
+        pantherToToken(_token1, pantherAmount.sub(pantherForToken0));
         uint liquidity = generateFlipToken();
-        CAKE_MASTER_CHEF.deposit(poolId, liquidity);
+        PANTHER_MASTER_CHEF.deposit(poolId, liquidity, 0xD9ebB6d95f3D8f3Da0b922bB05E0E79501C13554);
     }
 
-    function cakeToToken(address _token, uint amount) private {
-        if (_token == address(CAKE)) return;
+    function pantherToToken(address _token, uint amount) private {
+        if (_token == address(PANTHER)) return;
         address[] memory path;
         if (_token == address(WBNB)) {
             path = new address[](2);
-            path[0] = address(CAKE);
+            path[0] = address(PANTHER);
             path[1] = _token;
         } else {
             path = new address[](3);
-            path[0] = address(CAKE);
+            path[0] = address(PANTHER);
             path[1] = address(WBNB);
             path[2] = _token;
         }

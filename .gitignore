@@ -120,3 +120,4 @@ contracts/loan
 **/test
 hardhat.config.ts
 .DS_Store
+**/deploy

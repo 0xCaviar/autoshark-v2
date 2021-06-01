@@ -65,7 +65,7 @@ contract JawsPool is IStrategyLegacy, RewardsDistributionRecipientUpgradeable, R
 
         periodFinish = 0;
         rewardRate = 0;
-        rewardsDuration = 90 days;
+        rewardsDuration = 10 days;
         helper = IStrategyHelper(0xBd17385A935C8D77d15DB2E2C0e1BDE82fdFCe44);
 
         stakingToken.safeApprove(address(ROUTER), uint(~0));

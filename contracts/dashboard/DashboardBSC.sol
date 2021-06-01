@@ -44,15 +44,15 @@ contract DashboardBSC is OwnableUpgradeable {
     using SafeMath for uint;
     using SafeDecimal for uint;
 
-    PriceCalculatorBSC public constant priceCalculator = PriceCalculatorBSC(0x542c06a5dc3f27e0fbDc9FB7BC6748f26d54dDb0);
+    PriceCalculatorBSC public constant priceCalculator = PriceCalculatorBSC(0x41B471F347a7C2C8e6cb7F4F59C570C6D9c69a3C);
 
     address public constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address public constant JAWS = 0xdD97AB35e3C0820215bc85a395e13671d84CCBa2;
     address public constant PANTHER = 0x1f546aD641B56b86fD9dCEAc473d1C7a357276B7;
     address public constant VaultPantherToPanther = 0xEDfcB78e73f7bA6aD2D829bf5D462a0924da28eD;
 
-    IJawsChef private constant jawsChef = IJawsChef(0x40e31876c4322bd033BAb028474665B12c4d04CE);
-    JawsPool private constant jawsPool = JawsPool(0xCADc8CB26c8C7cB46500E61171b5F27e9bd7889D);
+    IJawsChef private constant jawsChef = IJawsChef(0x13582d2dfa7e61aC07694937bCB323C074be7207);
+    JawsPool private constant jawsPool = JawsPool(0x5D2112Ba0969EC66012380C1fb88F2A3D182Eb90);
 
     /* ========== STATE VARIABLES ========== */
 

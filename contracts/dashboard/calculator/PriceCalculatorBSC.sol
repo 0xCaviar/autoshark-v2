@@ -139,7 +139,7 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
         valueInUSD = valueInBNB.mul(priceOfBNB()).div(1e18);
     }
 
-    function _unsafeValueOfAsset(address asset, uint amount) public view returns (uint valueInBNB, uint valueInUSD) {
+    function _unsafeValueOfAsset(address asset, uint amount) private view returns (uint valueInBNB, uint valueInUSD) {
         if (asset == address(0) || asset == WBNB) {
             valueInBNB = amount;
             valueInUSD = amount.mul(priceOfBNB()).div(1e18);

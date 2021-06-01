@@ -95,7 +95,9 @@ contract ZapBSC is OwnableUpgradeable {
     /* ========== External Functions ========== */
 
     function zapInToken(address _from, uint amount, address _to) external {
+        uint before = IBEP20(_from).balanceOf(address(this));
         IBEP20(_from).safeTransferFrom(msg.sender, address(this), amount);
+        uint actualAmount = IBEP20(_from).balanceOf(address(this)).sub(before);
         _approveTokenIfNeeded(_from);
 
         if (isFlip(_to)) {
@@ -110,13 +112,16 @@ contract ZapBSC is OwnableUpgradeable {
                 uint beforeOtherAmount = IBEP20(other).balanceOf(address(this));
                 _swap(_from, sellAmount, other, address(this));
                 uint otherAmount = IBEP20(other).balanceOf(address(this)).sub(beforeOtherAmount);
-                ROUTER.addLiquidity(_from, other, amount.sub(sellAmount), otherAmount, 0, 0, msg.sender, block.timestamp);
+                uint fromAmount = amount.sub(sellAmount);
+                ROUTER.addLiquidity(_from, other, fromAmount, otherAmount, 0, 0, msg.sender, block.timestamp);
             } else {
-                uint bnbAmount = _swapTokenForBNB(_from, amount, address(this));
+                // Usage of actualAmount just in case to account for taxed currencies
+                uint bnbAmount = _swapTokenForBNB(_from, actualAmount, address(this));
                 _swapBNBToFlip(_to, bnbAmount, msg.sender);
             }
         } else {
-            _swap(_from, amount, _to, msg.sender);
+            // Usage of actualAmount just in case to account for taxed currencies
+            _swap(_from, actualAmount, _to, msg.sender);
         }
     }
 

@@ -9,6 +9,6 @@
     "outDir": "dist",
     "types": ["node", "truffle-contracts"]
   },
-  "include": ["./scripts", "./test", "./migrations", "./types", "./typechain"],
+  "include": ["./scripts", "./test", "./migrations", "./types", "./typechain", "./deploy"],
   "files": ["hardhat.config.ts"]
 }

@@ -41,6 +41,7 @@
     "ethers": "^5.0.24",
     "ganache-core": "^2.13.0",
     "hardhat": "^2.0.6",
+    "hardhat-deploy": "^0.7.10",
     "hardhat-typechain": "^0.3.5",
     "log-timestamp": "^0.3.0",
     "mocha": "^8.1.3",

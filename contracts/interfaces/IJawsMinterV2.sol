@@ -7,7 +7,7 @@ interface IJawsMinterV2 {
     function amountJawsToMintForJawsBNB(uint amount, uint duration) view external returns(uint);
     function withdrawalFee(uint amount, uint depositedAt) view external returns(uint);
     function performanceFee(uint profit) view external returns(uint);
-    function mintFor(address flip, uint _withdrawalFee, uint _performanceFee, address to, uint depositedAt) external payable returns (uint mintedAmount);
+    function mintFor(address flip, uint _withdrawalFee, uint _performanceFee, address to, uint depositedAt) external returns (uint mintedAmount);
     function mintForJawsBNB(uint amount, uint duration, address to) external;
 
     function jawsPerProfitBNB() view external returns(uint);

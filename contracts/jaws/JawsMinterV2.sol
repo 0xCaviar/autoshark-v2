@@ -181,7 +181,7 @@ contract JawsMinterV2 is IJawsMinterV2, OwnableUpgradeable, SimpleVaultZap {
 
     /* ========== V1 FUNCTIONS ========== */
 
-    function mintFor(address asset, uint _withdrawalFee, uint _performanceFee, address to, uint) external payable override onlyMinter returns (uint mintedAmount) {
+    function mintFor(address asset, uint _withdrawalFee, uint _performanceFee, address to, uint) external override onlyMinter returns (uint mintedAmount) {
         uint feeSum = _performanceFee.add(_withdrawalFee);
         uint beforeTransferAmount = IBEP20(asset).balanceOf(address(this));
         _transferAsset(asset, feeSum);
@@ -197,7 +197,7 @@ contract JawsMinterV2 is IJawsMinterV2, OwnableUpgradeable, SimpleVaultZap {
         IBEP20(JAWS_BNB).safeTransfer(JAWS_POOL, jawsBNBAmount);
         IStakingRewards(JAWS_POOL).notifyRewardAmount(jawsBNBAmount);
         
-        (uint valueInBNB,) = priceCalculator.valueOfAsset(JAWS_BNB, jawsBNBAmount);
+        (uint valueInBNB,) = priceCalculator.valueOfAsset(asset, feeSum);
 
         // Update oracle if time has elapsed > 10mins
         if (uint(block.timestamp % 2 ** 32).sub(jawsOracle.blockTimestampLast()) >= jawsOracle.PERIOD()) {

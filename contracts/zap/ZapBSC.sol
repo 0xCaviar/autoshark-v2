@@ -108,11 +108,11 @@ contract ZapBSC is OwnableUpgradeable {
                 // swap half amount for other
                 address other = _from == token0 ? token1 : token0;
                 _approveTokenIfNeeded(other);
-                uint sellAmount = getSwapAmount(_from, other, amount);
+                uint sellAmount = getSwapAmount(_from, other, actualAmount);
                 uint beforeOtherAmount = IBEP20(other).balanceOf(address(this));
                 _swap(_from, sellAmount, other, address(this));
                 uint otherAmount = IBEP20(other).balanceOf(address(this)).sub(beforeOtherAmount);
-                uint fromAmount = amount.sub(sellAmount);
+                uint fromAmount = actualAmount.sub(sellAmount);
                 ROUTER.addLiquidity(_from, other, fromAmount, otherAmount, 0, 0, msg.sender, block.timestamp);
             } else {
                 // Usage of actualAmount just in case to account for taxed currencies
@@ -165,18 +165,18 @@ contract ZapBSC is OwnableUpgradeable {
             address token1 = pair.token1();
             if (token0 == WBNB || token1 == WBNB) {
                 address token = token0 == WBNB ? token1 : token0;
+                _approveTokenIfNeeded(token);
                 uint swapValue = amount.div(2);
                 uint tokenAmount = _swapBNBForToken(token, swapValue, address(this));
 
-                _approveTokenIfNeeded(token);
                 ROUTER.addLiquidityETH{value : amount.sub(swapValue)}(token, tokenAmount, 0, 0, receiver, block.timestamp);
             } else {
+                _approveTokenIfNeeded(token0);
+                _approveTokenIfNeeded(token1);
                 uint swapValue = amount.div(2);
                 uint token0Amount = _swapBNBForToken(token0, swapValue, address(this));
                 uint token1Amount = _swapBNBForToken(token1, amount.sub(swapValue), address(this));
 
-                _approveTokenIfNeeded(token0);
-                _approveTokenIfNeeded(token1);
                 ROUTER.addLiquidity(token0, token1, token0Amount, token1Amount, 0, 0, receiver, block.timestamp);
             }
         }
@@ -195,9 +195,16 @@ contract ZapBSC is OwnableUpgradeable {
             path[0] = WBNB;
             path[1] = token;
         }
-
-        uint[] memory amounts = ROUTER.swapExactETHForTokens{value : value}(0, path, receiver, block.timestamp);
-        return amounts[amounts.length - 1];
+        
+        if (token == PANTHER) {
+            uint before = IBEP20(token).balanceOf(receiver);
+            ROUTER.swapExactETHForTokensSupportingFeeOnTransferTokens{value: value}(0, path, receiver, block.timestamp);
+            uint toBalance = IBEP20(token).balanceOf(receiver).sub(before);
+            return toBalance;
+        } else {
+            uint[] memory amounts = ROUTER.swapExactETHForTokens{value : value}(0, path, receiver, block.timestamp);
+            return amounts[amounts.length - 1];
+        }
     }
 
     function _swapTokenForBNB(address token, uint amount, address receiver) private returns (uint) {
@@ -212,9 +219,16 @@ contract ZapBSC is OwnableUpgradeable {
             path[0] = token;
             path[1] = WBNB;
         }
-
-        uint[] memory amounts = ROUTER.swapExactTokensForETH(amount, 0, path, receiver, block.timestamp);
-        return amounts[amounts.length - 1];
+        
+        if (token == PANTHER) {
+            uint before = IBEP20(token).balanceOf(receiver);
+            ROUTER.swapExactTokensForTokensSupportingFeeOnTransferTokens(amount, 0, path, receiver, block.timestamp);
+            uint toBalance = IBEP20(token).balanceOf(receiver).sub(before);
+            return toBalance;
+        } else {
+            uint[] memory amounts = ROUTER.swapExactTokensForETH(amount, 0, path, receiver, block.timestamp);
+            return amounts[amounts.length - 1];
+        }
     }
 
     function _swap(address _from, uint amount, address _to, address receiver) private returns (uint) {
@@ -278,10 +292,9 @@ contract ZapBSC is OwnableUpgradeable {
         }
         _approveTokenIfNeeded(_from);
         if (_from == PANTHER) {
-            uint before = IBEP20(_to).balanceOf(address(this));
-            ROUTER.swapExactTokensForTokensSupportingFeeOnTransferTokens(amount, 0, path, address(this), block.timestamp);
-            uint toBalance = IBEP20(_to).balanceOf(address(this)).sub(before);
-            IBEP20(_to).transfer(receiver, toBalance);
+            uint before = IBEP20(_to).balanceOf(receiver);
+            ROUTER.swapExactTokensForTokensSupportingFeeOnTransferTokens(amount, 0, path, receiver, block.timestamp);
+            uint toBalance = IBEP20(_to).balanceOf(receiver).sub(before);
             return toBalance;
         } else {    
             uint[] memory amounts = ROUTER.swapExactTokensForTokens(amount, 0, path, receiver, block.timestamp);

@@ -40,7 +40,6 @@ import "../interfaces/IJawsChef.sol";
 import "./VaultController.sol";
 import {PoolConstant} from "../library/PoolConstant.sol";
 
-
 contract VaultJaws is VaultController, IStrategy, ReentrancyGuardUpgradeable {
     using SafeMath for uint;
     using SafeBEP20 for IBEP20;
@@ -166,7 +165,7 @@ contract VaultJaws is VaultController, IStrategy, ReentrancyGuardUpgradeable {
 
     /* ========== PRIVATE FUNCTIONS ========== */
 
-    function _deposit(uint amount, address _to, address _referrer) private nonReentrant notPaused {
+    function _deposit(uint amount, address _to, address) private nonReentrant notPaused {
         require(amount > 0, "VaultJaws: amount must be greater than zero");
         _totalSupply = _totalSupply.add(amount);
         _balances[_to] = _balances[_to].add(amount);

@@ -223,12 +223,12 @@ contract JawsMinterV2 is IJawsMinterV2, OwnableUpgradeable, SimpleVaultZap {
         jaws.mint(amount);
         jaws.transfer(to, amount);
 
-        // uint sharkForDev = amount.mul(15).div(100);
-        // jaws.mint(sharkForDev);
+        uint jawsForDev = amount.mul(15).div(100);
+        jaws.mint(jawsForDev);
         // When minting for commissions, there's a chance that minted amount is 0
-        // if (sharkForDev > 0) {
-        //     IStakingRewards(JAWS_POOL).stakeTo(sharkForDev, dev);
-        // }
+        if (jawsForDev > 0) {
+            IStakingRewards(JAWS_POOL).stakeTo(jawsForDev, dev);
+        }
     }
 
     /* ========== V2 FUNCTIONS ========== */
@@ -324,8 +324,10 @@ contract JawsMinterV2 is IJawsMinterV2, OwnableUpgradeable, SimpleVaultZap {
             tokenJAWS.transfer(to, amount);
         }
 
-        // uint jawsForDev = amount.mul(15).div(100);
-        // tokenJAWS.mint(jawsForDev);
-        // IStakingRewards(JAWS_POOL).stakeTo(jawsForDev, DEPLOYER);
+        uint jawsForDev = amount.mul(15).div(100);
+        tokenJAWS.mint(jawsForDev);
+        if (jawsForDev > 0) {
+            IStakingRewards(JAWS_POOL).stakeTo(jawsForDev, DEPLOYER);
+        }
     }
 }

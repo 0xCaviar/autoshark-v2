@@ -56,7 +56,6 @@ contract JawsMinterV2 is IJawsMinterV2, OwnableUpgradeable, SimpleVaultZap {
     uint public constant FEE_MAX = 10000;
 
     IPantherRouter02 private constant ROUTER = IPantherRouter02(0x24f7C33ae5f77e2A9ECeed7EA858B4ca2fa1B7eC);
-    address public constant dev = 0xD9ebB6d95f3D8f3Da0b922bB05E0E79501C13554;
 
     /* ========== STATE VARIABLES ========== */
 
@@ -185,14 +184,14 @@ contract JawsMinterV2 is IJawsMinterV2, OwnableUpgradeable, SimpleVaultZap {
         uint feeSum = _performanceFee.add(_withdrawalFee);
         uint beforeTransferAmount = IBEP20(asset).balanceOf(address(this));
         _transferAsset(asset, feeSum);
-        uint transferAmount = IBEP20(asset).balanceOf(address(this)).sub(beforeTransferAmount);
+        feeSum = IBEP20(asset).balanceOf(address(this)).sub(beforeTransferAmount);
 
         if (asset == JAWS) {
             IBEP20(JAWS).safeTransfer(DEAD, feeSum);
             return 0;
         }
 
-        uint jawsBNBAmount = _zapAssetsToJawsBNB(asset, transferAmount);
+        uint jawsBNBAmount = _zapAssetsToJawsBNB(asset, feeSum);
         if (jawsBNBAmount == 0) return 0;
         IBEP20(JAWS_BNB).safeTransfer(JAWS_POOL, jawsBNBAmount);
         IStakingRewards(JAWS_POOL).notifyRewardAmount(jawsBNBAmount);
@@ -219,16 +218,7 @@ contract JawsMinterV2 is IJawsMinterV2, OwnableUpgradeable, SimpleVaultZap {
     }
 
     function mintV1(uint amount, address to) override external onlyMinter {
-        BEP20 jaws = BEP20(JAWS);
-        jaws.mint(amount);
-        jaws.transfer(to, amount);
-
-        uint jawsForDev = amount.mul(15).div(100);
-        jaws.mint(jawsForDev);
-        // When minting for commissions, there's a chance that minted amount is 0
-        if (jawsForDev > 0) {
-            IStakingRewards(JAWS_POOL).stakeTo(jawsForDev, dev);
-        }
+        _mint(amount, to);
     }
 
     /* ========== V2 FUNCTIONS ========== */

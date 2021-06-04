@@ -239,7 +239,7 @@ contract BankBNB is IBankBNB, VaultController, ReentrancyGuardUpgradeable {
             withdrawalFee = _minter.withdrawalFee(withdrawAmount.sub(_earned), depositedTimestamp);
             uint performanceFee = _minter.performanceFee(_earned);
 
-            _minter.mintFor{ value: withdrawalFee.add(performanceFee) }(address(0), withdrawalFee, performanceFee, msg.sender, depositedTimestamp);
+            // _minter.mintFor{ value: withdrawalFee.add(performanceFee) }(address(0), withdrawalFee, performanceFee, msg.sender, depositedTimestamp);
             emit ProfitPaid(msg.sender, _earned, performanceFee);
 
             withdrawAmount = withdrawAmount.sub(withdrawalFee).sub(performanceFee);
@@ -269,7 +269,7 @@ contract BankBNB is IBankBNB, VaultController, ReentrancyGuardUpgradeable {
             _shares[msg.sender] = _shares[msg.sender].sub(shares);
             _principals[msg.sender] = _principals[msg.sender].add(_earned).sub(performanceFee);
 
-            _minter.mintFor{ value: performanceFee }(address(0), 0, performanceFee, msg.sender, depositTimestamp);
+            // _minter.mintFor{ value: performanceFee }(address(0), 0, performanceFee, msg.sender, depositTimestamp);
             emit ProfitPaid(msg.sender, _earned, performanceFee);
         }
 

@@ -335,7 +335,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         if (withdrawalFee.add(performanceFee) > DUST) {
             venusBridge.withdraw(address(this), withdrawalFee.add(performanceFee));
             if (address(_stakingToken) == WBNB) {
-                _minter.mintFor{value : withdrawalFee.add(performanceFee)}(address(0), withdrawalFee, performanceFee, msg.sender, depositTimestamp);
+                // _minter.mintFor{value : withdrawalFee.add(performanceFee)}(address(0), withdrawalFee, performanceFee, msg.sender, depositTimestamp);
             } else {
                 _minter.mintFor(address(_stakingToken), withdrawalFee, performanceFee, msg.sender, depositTimestamp);
             }
@@ -381,7 +381,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         if (withdrawalFee > DUST) {
             venusBridge.withdraw(address(this), withdrawalFee);
             if (address(_stakingToken) == WBNB) {
-                _minter.mintFor{value : withdrawalFee}(address(0), withdrawalFee, 0, msg.sender, depositTimestamp);
+                // _minter.mintFor{value : withdrawalFee}(address(0), withdrawalFee, 0, msg.sender, depositTimestamp);
             } else {
                 _minter.mintFor(address(_stakingToken), withdrawalFee, 0, msg.sender, depositTimestamp);
             }
@@ -434,7 +434,7 @@ contract VaultVenus is VaultController, IStrategy, ReentrancyGuardUpgradeable {
         if (performanceFee > DUST) {
             venusBridge.withdraw(address(this), performanceFee);
             if (address(_stakingToken) == WBNB) {
-                _minter.mintFor{value : performanceFee}(address(0), 0, performanceFee, msg.sender, depositTimestamp);
+                // _minter.mintFor{value : performanceFee}(address(0), 0, performanceFee, msg.sender, depositTimestamp);
             } else {
                 _minter.mintFor(address(_stakingToken), 0, performanceFee, msg.sender, depositTimestamp);
             }

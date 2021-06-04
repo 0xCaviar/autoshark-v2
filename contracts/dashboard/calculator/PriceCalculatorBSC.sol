@@ -106,7 +106,7 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
             return _oracleValueOf(WBNB, amount);
         } else if (oracleFeeds[asset] != address(0)) {
             return _simpleOracleValueOf(asset, amount);
-        } else if (asset == JAWS || asset == JAWS_BNB_V1 || asset == JAWS_BNB_V2 || asset == PANTHER_BNB) {
+        } else if (asset == JAWS) {
             return _unsafeValueOfAsset(asset, amount);
         } else if (keccak256(abi.encodePacked(IPantherPair(asset).symbol())) == keccak256("PANTHER-LP")) {
             return _getPairPrice(asset, amount);
@@ -132,8 +132,8 @@ contract PriceCalculatorBSC is IPriceCalculator, OwnableUpgradeable {
         uint totalSupply = IPantherPair(pair).totalSupply();
         (uint r0, uint r1, ) = IPantherPair(pair).getReserves();
         uint sqrtK = HomoraMath.sqrt(r0.mul(r1)).fdiv(totalSupply);
-        (uint px0,) = _oracleValueOf(token0, 1e18);
-        (uint px1,) = _oracleValueOf(token1, 1e18);
+        (uint px0,) = oracleFeeds[token0] != address(0) ? _simpleOracleValueOf(token0, 1e18) : _oracleValueOf(token0, 1e18);
+        (uint px1,) = oracleFeeds[token1] != address(0) ? _simpleOracleValueOf(token1, 1e18) : _oracleValueOf(token1, 1e18);
         uint fairPriceInBNB = sqrtK.mul(2).mul(HomoraMath.sqrt(px0)).div(2**56).mul(HomoraMath.sqrt(px1)).div(2**56);
         valueInBNB = fairPriceInBNB.mul(amount).div(1e18);
         valueInUSD = valueInBNB.mul(priceOfBNB()).div(1e18);
